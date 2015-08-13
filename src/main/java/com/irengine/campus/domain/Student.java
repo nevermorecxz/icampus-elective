@@ -49,6 +49,11 @@ public class Student extends BaseEntity implements Serializable {
 	@JoinTable(name = "ele_students_courses", joinColumns = @JoinColumn(name = "student_id"), inverseJoinColumns = @JoinColumn(name = "course_id"))
 	private List<SelectCourse> selectCourses = new ArrayList<SelectCourse>();
 
+	@JsonIgnore
+	@ManyToMany
+	@JoinTable(name = "ele_group_student", joinColumns = @JoinColumn(name = "student_id"), inverseJoinColumns = @JoinColumn(name = "group_id"))
+	private List<Group> groups=new ArrayList<Group>();
+	
 	/** 返回学生类型 */
 	public String getReturnType() {
 		return type.getType();
@@ -118,6 +123,14 @@ public class Student extends BaseEntity implements Serializable {
 
 	public void setSelectCourses(List<SelectCourse> selectCourses) {
 		this.selectCourses = selectCourses;
+	}
+
+	public List<Group> getGroups() {
+		return groups;
+	}
+
+	public void setGroups(List<Group> groups) {
+		this.groups = groups;
 	}
 
 }

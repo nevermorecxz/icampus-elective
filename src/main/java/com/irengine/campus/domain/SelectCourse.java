@@ -30,8 +30,8 @@ public class SelectCourse extends BaseEntity implements Serializable {
 	// 是否被选为等级考
 	private boolean selected;
 
-	// 第几学期被记录(用于根据系统时间判断该课程已学多少个学期)
-	private Integer th;
+	// 2015年的选课被记录(用于根据系统时间判断该课程已学多少个学期)
+	private Integer year;
 
 	// 0为上学期选择该门课,1为下学期选择该门课
 	private Integer term;
@@ -45,12 +45,12 @@ public class SelectCourse extends BaseEntity implements Serializable {
 		super();
 	}
 
-	public SelectCourse(Course course, boolean selected, Integer th,
+	public SelectCourse(Course course, boolean selected, Integer year,
 			Integer term, Preferences preferences) {
 		super();
 		this.course = course;
 		this.selected = selected;
-		this.th = th;
+		this.year = year;
 		this.term = term;
 		this.preferences = preferences;
 	}
@@ -71,12 +71,12 @@ public class SelectCourse extends BaseEntity implements Serializable {
 		this.selected = selected;
 	}
 
-	public Integer getTh() {
-		return th;
+	public Integer getYear() {
+		return year;
 	}
 
-	public void setTh(Integer th) {
-		this.th = th;
+	public void setYear(Integer year) {
+		this.year = year;
 	}
 
 	public Integer getTerm() {

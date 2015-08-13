@@ -21,6 +21,18 @@ public class StatisticalDataOfSelectCourseAssist extends BaseEntity implements S
 	
 	private Integer unifiedNum;
 
+	public StatisticalDataOfSelectCourseAssist() {
+		super();
+	}
+
+	public StatisticalDataOfSelectCourseAssist(Course course, Integer levelNum,
+			Integer unifiedNum) {
+		super();
+		this.course = course;
+		this.levelNum = levelNum;
+		this.unifiedNum = unifiedNum;
+	}
+
 	public Course getCourse() {
 		return course;
 	}

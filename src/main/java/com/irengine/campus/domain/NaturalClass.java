@@ -1,11 +1,15 @@
 package com.irengine.campus.domain;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
@@ -19,12 +23,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
  */
 @Entity
 @Table(name = "ele_nclass")
-public class NaturalClass extends BaseEntity implements Serializable,Comparable<NaturalClass> {
+public class NaturalClass extends BaseEntity implements Serializable,
+		Comparable<NaturalClass> {
 
 	private static final long serialVersionUID = 3213914307361833259L;
 
-	@Column(nullable = false, length = 50)
-	private Long className;
+	private Integer className;
 
 	@Column(nullable = false)
 	private Integer attendance;// 入学年份
@@ -34,9 +38,15 @@ public class NaturalClass extends BaseEntity implements Serializable,Comparable<
 	@JoinColumn(name = "type_id")
 	private TypeOfNClass classType;
 
+	// 班主任
 	@ManyToOne
 	@JoinColumn(name = "teacher_id")
 	private Teacher teacher;
+
+	// 该老师分组时默认带的班级
+	@ManyToMany
+	@JoinTable(name = "ele_natural_class_teacher", joinColumns = @JoinColumn(name = "natural_class_id"), inverseJoinColumns = @JoinColumn(name = "teacher_id"))
+	private List<Teacher> teachers = new ArrayList<Teacher>();
 
 	public String getReturnClassType() {
 		return classType.getTypeName();
@@ -50,16 +60,16 @@ public class NaturalClass extends BaseEntity implements Serializable,Comparable<
 		int month = cal.get(Calendar.MONTH) + 1;
 		int year = cal.get(Calendar.YEAR);
 		/* 7月份为升级节点 */
-		int num=1;
-		num=month>=8?year-attendance+1:year-attendance;
-		if(num<=1){
-			return attendance+"届高一("+className+")班";
-		}else if(num==2){
-			return attendance+"届高二("+className+")班";
-		}else if(num==3){
-			return attendance+"届高三("+className+")班";
-		}else{
-			return attendance+"届("+className+")班";
+		int num = 1;
+		num = month >= 8 ? year - attendance + 1 : year - attendance;
+		if (num <= 1) {
+			return attendance + "届高一(" + className + ")班";
+		} else if (num == 2) {
+			return attendance + "届高二(" + className + ")班";
+		} else if (num == 3) {
+			return attendance + "届高三(" + className + ")班";
+		} else {
+			return attendance + "届(" + className + ")班";
 		}
 	}
 
@@ -79,11 +89,11 @@ public class NaturalClass extends BaseEntity implements Serializable,Comparable<
 		this.attendance = attendance;
 	}
 
-	public Long getClassName() {
+	public Integer getClassName() {
 		return className;
 	}
 
-	public void setClassName(Long className) {
+	public void setClassName(Integer className) {
 		this.className = className;
 	}
 
@@ -95,9 +105,17 @@ public class NaturalClass extends BaseEntity implements Serializable,Comparable<
 		this.classType = classType;
 	}
 
-	@Override
-	public int compareTo(NaturalClass o) {
-		return (int) (this.className-o.getClassName());
+	public List<Teacher> getTeachers() {
+		return teachers;
 	}
 
+	public void setTeachers(List<Teacher> teachers) {
+		this.teachers = teachers;
+	}
+
+	@Override
+	public int compareTo(NaturalClass o) {
+		return (int) (this.className - o.getClassName());
+	}
+	
 }

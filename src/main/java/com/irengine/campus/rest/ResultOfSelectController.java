@@ -191,7 +191,6 @@ public class ResultOfSelectController {
 					break;
 				}
 			}
-			logger.debug("j:"+j);
 			if(!j){
 				continue;
 			}

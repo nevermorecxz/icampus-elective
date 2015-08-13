@@ -13,18 +13,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.irengine.campus.domain.Course;
+import com.irengine.campus.domain.Group;
 import com.irengine.campus.domain.Preferences;
 import com.irengine.campus.domain.SelectCourse;
 import com.irengine.campus.domain.Student;
 import com.irengine.campus.domain.UserBaseInfo;
 import com.irengine.campus.security.SecurityUtils;
 import com.irengine.campus.service.CourseService;
+import com.irengine.campus.service.GroupService;
 import com.irengine.campus.service.PreferenceService;
 import com.irengine.campus.service.ResultOfSelectService;
 import com.irengine.campus.service.SelectCourseService;
@@ -55,6 +58,28 @@ public class StudentController {
 
 	@Autowired
 	private SelectCourseService selectCourseService;
+
+	@RequestMapping(value="/{id}/selectCourses",method = RequestMethod.GET)
+	public ResponseEntity<?> getSelectCourses(@PathVariable("id") Long id) {
+		Student student=studentService.findOneById(id);
+		List<SelectCourse> selectCourses=student.getSelectCourses();
+		List<String> strs=new ArrayList<String>();
+		for(SelectCourse selectCourse:selectCourses){
+			strs.add(""+selectCourse.getCourse().getCourseName()+selectCourse.isSelected());
+		}
+		return new ResponseEntity<>(strs, HttpStatus.OK);
+	}
+	
+	@RequestMapping(value="/{id}/groups",method = RequestMethod.GET)
+	public ResponseEntity<?> getGroups(@PathVariable("id") Long id) {
+		Student student=studentService.findOneById(id);
+		List<Group> groups=student.getGroups();
+		List<String> strs=new ArrayList<String>();
+		for(Group group:groups){
+			strs.add(group.getInfo());
+		}
+		return new ResponseEntity<>(strs, HttpStatus.OK);
+	}
 
 	@RequestMapping(method = RequestMethod.GET)
 	public ResponseEntity<?> getInfo() {
@@ -150,7 +175,7 @@ public class StudentController {
 			}
 			student.setSelectCourses(selectCourses2);
 			student = studentService.save(student);
-			if(selectCourses3.size()>0){
+			if (selectCourses3.size() > 0) {
 				selectCourseService.deleteAll(selectCourses3);
 			}
 			// ResultOfSelect result = new ResultOfSelect(preferences,

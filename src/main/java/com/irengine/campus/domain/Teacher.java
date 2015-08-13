@@ -25,11 +25,6 @@ public class Teacher extends BaseEntity implements Serializable {
 	// 该老师带第几届学生
 	private Integer th;
 
-	// 该老师分组时默认带的班级
-	@ManyToMany
-	@JoinTable(name = "ele_teacher_natural_class", joinColumns = @JoinColumn(name = "teacher_id"), inverseJoinColumns = @JoinColumn(name = "natural_class_id"))
-	private List<NaturalClass> nClasses = new ArrayList<NaturalClass>();
-
 	@OneToOne
 	@JoinColumn(name = "user_id")
 	private UserBaseInfo baseInfo;
@@ -56,14 +51,6 @@ public class Teacher extends BaseEntity implements Serializable {
 
 	public void setTh(Integer th) {
 		this.th = th;
-	}
-
-	public List<NaturalClass> getnClasses() {
-		return nClasses;
-	}
-
-	public void setnClasses(List<NaturalClass> nClasses) {
-		this.nClasses = nClasses;
 	}
 
 }

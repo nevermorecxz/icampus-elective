@@ -43,30 +43,61 @@ public class TestCase {
 		//th(第几届的选课)
 		int th=2015;
 		//针对哪个学期的选课
-		int term=1;
+		int term=0;
 		//有多少个学生
-		int num=100;
+		int num=600;
 		//可选课程id
-		String[] strs=new String[]{"1","2","3","4"};
+		String[] strs=new String[]{"1","2","3","4","5","6"};
 		//preferences_id
 		int preferences_id=1;
+		//选几门
+		int selectedNum=3;
 		Random random = new Random();
 		int a=1;
 		for(int i=0;i<num;i++){
+			List<Integer> integers=new ArrayList<Integer>();
+			while(integers.size()<3){
+				int num2=random.nextInt(strs.length);
+				if(integers.indexOf(num2)==-1){
+					integers.add(num2);
+				}
+			}
+			random.nextInt(strs.length);
 			for(int j=0;j<strs.length;j++){
-				System.out.println("insert into ELE_SELECT_COURSE values("+a+",false,"+term+","+th+","+strs[j]+","+preferences_id+");");
+				String str="false";
+				if(integers.indexOf(j)>-1){
+					str="true";
+				}
+				System.out.println("insert into ELE_SELECT_COURSE values("+a+","+str+","+term+","+th+","+strs[j]+","+preferences_id+");");
 				a++;
 			}
 		}
 		//起始学生id
 		int studentId=1;
 		//结束学生id
-		int studentId2=100;
+		int studentId2=600;
 		int b=1;
 		for(int i=studentId;i<=studentId2;i++){
 			for(int j=0;j<strs.length;j++){
 				System.out.println("insert into ELE_STUDENTS_COURSES values("+i+","+b+");");
 				b++;
+			}
+		}
+	}
+	
+	@Test
+	public void test09(){
+		//代课老师对应班级class_id teacher_id
+		//insert into ELE_NATURAL_CLASS_TEACHER values(1,1);
+		//多少个班
+		int num1=12;
+		//一个老师带多少个班
+		int num2=3;
+		//有多少门课程
+		int num3=6;
+		for(int i=1;i<=num1;i++){
+			for(int j=1;j<=num3;j++){
+				System.out.println("insert into ELE_NATURAL_CLASS_TEACHER values("+i+","+((i/(num2+1))*6+(j%(num3+1)))+");");
 			}
 		}
 	}
@@ -82,13 +113,13 @@ public class TestCase {
 		//起始id
 		int id1=1;
 		//结束id
-		int id2=100;
+		int id2=600;
 		//起始user_id
 		int id3=1;
 		//学生类型
 		String[] strs=new String[]{"1","2"};
 		//班级
-		String[] strs2=new String[]{"1","2","3"};
+		String[] strs2=new String[]{"1","2","3","4","5","6","7","8","9","10","11","12"};
 		Random random = new Random();
 		for(int i=id1;i<=id2;i++){
 			String studentnum=i/strs2.length+1<10?0+""+(i/strs2.length+1):i/strs2.length+1+"";
@@ -103,9 +134,9 @@ public class TestCase {
 	@Test
 	public void test04() {
 		//起始id
-		int id1=101;
+		int id1=601;
 		//结束id
-		int id2=112;
+		int id2=624;
 		//身份:2=学生,3=老师
 		int num=3;
 		Random random = new Random();
@@ -123,6 +154,30 @@ public class TestCase {
 
 	}
 
+	@Test
+	public void test08(){
+		//教师:id,第几届,user_id,course_id
+		//insert into ELE_TEACHER values(1,2015,101,1);
+		//起始id
+		int id1=1;
+		//结束id
+		int id2=24;
+		//第几届
+		int th=2015;
+		//其实user_id
+		int user_id=601;
+		//有多少门课
+		int num=6;
+		
+		int num2=0;
+		for(int i=id1;i<=id2;i++){
+			System.out.println("insert into ELE_TEACHER values("+i+","+th+","+user_id+","+((num2%num)+1)+");");
+			user_id++;
+			num2++;
+		}
+	}
+	
+	
 	private String test05() {
 		String str="";
 		Random fu = new Random();
