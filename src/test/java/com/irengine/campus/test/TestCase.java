@@ -47,7 +47,9 @@ public class TestCase {
 		//有多少个学生
 		int num=600;
 		//可选课程id
-		String[] strs=new String[]{"1","2","3","4","5","6"};
+		String[] strs1=new String[]{"1","2","3","4","5","6"};
+		//可选课程id(可调概率)
+		String[] strs=new String[]{"1","1","1","1","2","2","2","2","3","4","5","5","5","5","5","6"};
 		//preferences_id
 		int preferences_id=1;
 		//选几门
@@ -55,20 +57,20 @@ public class TestCase {
 		Random random = new Random();
 		int a=1;
 		for(int i=0;i<num;i++){
-			List<Integer> integers=new ArrayList<Integer>();
-			while(integers.size()<3){
-				int num2=random.nextInt(strs.length);
-				if(integers.indexOf(num2)==-1){
-					integers.add(num2);
+			List<String> strings=new ArrayList<String>();
+			while(strings.size()<selectedNum){
+				String str=strs[random.nextInt(strs.length)];
+				if(strings.indexOf(str)==-1){
+					strings.add(str);
 				}
 			}
-			random.nextInt(strs.length);
-			for(int j=0;j<strs.length;j++){
+			//System.out.println(strings.toString());
+			for(int j=0;j<strs1.length;j++){
 				String str="false";
-				if(integers.indexOf(j)>-1){
+				if(strings.indexOf(""+(j+1))>-1){
 					str="true";
 				}
-				System.out.println("insert into ELE_SELECT_COURSE values("+a+","+str+","+term+","+th+","+strs[j]+","+preferences_id+");");
+				System.out.println("insert into ELE_SELECT_COURSE values("+a+","+str+","+term+","+th+","+strs1[j]+","+preferences_id+");");
 				a++;
 			}
 		}
@@ -78,8 +80,8 @@ public class TestCase {
 		int studentId2=600;
 		int b=1;
 		for(int i=studentId;i<=studentId2;i++){
-			for(int j=0;j<strs.length;j++){
-				System.out.println("insert into ELE_STUDENTS_COURSES values("+i+","+b+");");
+			for(int j=0;j<strs1.length;j++){
+				//System.out.println("insert into ELE_STUDENTS_COURSES values("+i+","+b+");");
 				b++;
 			}
 		}

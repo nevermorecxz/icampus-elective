@@ -5,7 +5,7 @@ import java.util.List;
 
 import com.irengine.campus.domain.Teacher;
 
-public class TeacherAndGroups {
+public class TeacherAndGroups implements Comparable<TeacherAndGroups>{
 
 	private Teacher teacher;
 	
@@ -35,6 +35,15 @@ public class TeacherAndGroups {
 
 	public void setGroupDTOs(List<GroupDTO> groupDTOs) {
 		this.groupDTOs = groupDTOs;
+	}
+
+	@Override
+	public int compareTo(TeacherAndGroups o) {
+		int levelPeriod=teacher.getCourse().getLevelPeriod();
+		int unifiedPeriod=teacher.getCourse().getUnifiedPeriod();
+		int oLevelPeriod=o.getTeacher().getCourse().getLevelPeriod();
+		int oUnifiedPeriod=o.getTeacher().getCourse().getUnifiedPeriod();
+		return (oLevelPeriod>oUnifiedPeriod?oLevelPeriod:oUnifiedPeriod)-(levelPeriod>unifiedPeriod?levelPeriod:unifiedPeriod);
 	}
 	
 }

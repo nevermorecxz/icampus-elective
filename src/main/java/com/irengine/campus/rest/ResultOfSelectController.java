@@ -273,7 +273,7 @@ public class ResultOfSelectController {
 				continue;
 			}
 			for (SelectCourse selectCourse : student.getSelectCourses()) {
-				if (selectCourse.isSelected()) {
+				if (!selectCourse.isSelected()) {
 					continue;
 				}
 				int x = row1.getData().indexOf(
