@@ -118,11 +118,10 @@ public class CoursesArrangingController {
 			} else if (!infos[0].matches("^[1-5]\\d*$") || !infos[1].matches("^[1-9]\\d*$")) {
 				return new ResponseEntity<>("输入的课时格式错误！", HttpStatus.BAD_REQUEST);
 			}
-			
+			// 把输入的period参数转换成ClassHour类的对象并储存到数据库中
 			ClassHour classHour = new ClassHour();
-			classHour = classHour.toClass(info) ;
-//			classHours = classHourService.getClassHours(periodInfo);
-//			classHour.setTime(time);
+			classHour = classHour.toClass(info);
+			// classHours = classHourService.getClassHours(periodInfo);
 			classHours.add(classHour);
 			classHour = classHourService.save(classHour);
 		}
@@ -306,31 +305,34 @@ public class CoursesArrangingController {
 		baseSyllabus.setClassHourModules(classHourModules);
 
 		// 输入的上课时间参数顺序随机重排
-		for (int i = 0; i < classHours.size(); i++) {
-			int from = (int) Math.floor(Math.random() * classHours.size());
-			int to = (int) Math.floor(Math.random() * classHours.size());
-			ClassHour temp = classHours.get(to);
-			classHours.set(to, classHours.get(from));
-			classHours.set(from, temp);
-		}
-
 		List<List<ClassHour>> subClassHours = new ArrayList<List<ClassHour>>();
-		List<Boolean> cs = new ArrayList<Boolean>();
-		int num2 = 0;
-		for (int i = 0; i < classHourModules.size(); i++) {
-			List<ClassHour> subClassHours1 = classHours.subList(num2, num2 + classHourModules.get(i).getHours());
-			num2 += classHourModules.get(i).getHours();
-			boolean c = compareClassHours(subClassHours1);
-//			//转换为字符串类型的List，然后调用compareClassHours()
-//			List<String> times = new ArrayList<String>();
-//			for(int j = 0;j<subClassHours1.size();j++){
-//			times.add(subClassHours1.get(j).toString());
-//			}
-//			boolean c = compareClassHours(times);
-			cs.add(c);
-			subClassHours.add(subClassHours1);
-		}
+		boolean c = false;
+		while (c == false) {
+			subClassHours = new ArrayList<List<ClassHour>>();
+			for (int i = 0; i < classHours.size(); i++) {
+				int from = (int) Math.floor(Math.random() * classHours.size());
+				int to = (int) Math.floor(Math.random() * classHours.size());
+				ClassHour temp = classHours.get(to);
+				classHours.set(to, classHours.get(from));
+				classHours.set(from, temp);
+			}
 
+//			List<Boolean> cs = new ArrayList<Boolean>();
+			int num2 = 0;
+			for (int i = 0; i < classHourModules.size(); i++) {
+				c=false;
+				List<ClassHour> subClassHours1 = classHours.subList(num2, num2 + classHourModules.get(i).getHours());
+				num2 += classHourModules.get(i).getHours();
+				c = compareClassHours(subClassHours1);
+				logger.debug(""+c);
+				if (c==true) {
+//					cs.add(c);
+					subClassHours.add(subClassHours1);
+				} else {
+					break;
+				}
+			}
+		}
 		// 具体的上课时间分配到每个段里面
 		for (int i = 0; i < classHourModules.size(); i++) {
 			classHourModules.get(i).setClassHours(subClassHours.get(i));
@@ -487,7 +489,7 @@ public class CoursesArrangingController {
 		baseSyllabus = baseSyllabusService.save(baseSyllabus);
 		/* 返回结果 */
 		if (type == 1) {
-//			return new ResponseEntity<>(classHours, HttpStatus.OK);
+			// return new ResponseEntity<>(classHours, HttpStatus.OK);
 			return new ResponseEntity<>(classHourModules, HttpStatus.OK);
 			// return new ResponseEntity<>(teacherAndGroups, HttpStatus.OK);
 		}
@@ -499,12 +501,11 @@ public class CoursesArrangingController {
 	}
 
 	// 调用-------------------------------------------------------------------------------------------------
-	/* 求前面几个数相加 */
 
 	/*
-	 * 验证一个List<ClassHour>
+	 * 验证一个List<ClassHour> 
 	 * 判断同一天的两节课是不是相邻的两节课(方法可行)
-	 * */
+	 */
 	public boolean compare(ClassHour one, ClassHour another) {
 		if (one.getDay() != another.getDay()) {
 			return true;
@@ -524,7 +525,6 @@ public class CoursesArrangingController {
 		}
 		return true;
 	}
-
 
 	private int utilityClassGetIndex(List<Integer> integers3, int maxClassHours) {
 		int num = 0;
