@@ -44,7 +44,7 @@ public class UtilityClass implements Comparable<UtilityClass>{
 		return "UtilityClass [maxClassHours=" + maxClassHours + ", num=" + num
 				+ "]";
 	}
-
+	//sort
 	@Override
 	public int compareTo(UtilityClass o) {
 		return maxClassHours-o.getMaxClassHours();

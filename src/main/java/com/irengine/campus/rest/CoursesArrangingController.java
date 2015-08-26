@@ -1,6 +1,7 @@
 package com.irengine.campus.rest;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -11,6 +12,7 @@ import net.sf.saxon.functions.Compare;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.irengine.campus.domain.ArrangeCourse;
 import com.irengine.campus.domain.BaseSyllabus;
 import com.irengine.campus.domain.BasicSettings;
+import com.irengine.campus.domain.ClassHour;
 import com.irengine.campus.domain.ClassHourModule;
 import com.irengine.campus.domain.Course;
 import com.irengine.campus.domain.Group;
@@ -31,7 +34,9 @@ import com.irengine.campus.domain.StatisticalDataOfSelectCourseAssist;
 import com.irengine.campus.domain.Student;
 import com.irengine.campus.domain.Teacher;
 import com.irengine.campus.service.ArrangeCourseService;
+import com.irengine.campus.service.BaseSyllabusService;
 import com.irengine.campus.service.BasicSettingsService;
+import com.irengine.campus.service.ClassHourService;
 import com.irengine.campus.service.CourseService;
 import com.irengine.campus.service.GroupService;
 import com.irengine.campus.service.NaturalClassService;
@@ -52,8 +57,7 @@ import com.irengine.campus.web.rest.dto.util.GroupDTOUtil;
 @RequestMapping("/arranging")
 public class CoursesArrangingController {
 
-	private static Logger logger = LoggerFactory
-			.getLogger(CoursesArrangingController.class);
+	private static Logger logger = LoggerFactory.getLogger(CoursesArrangingController.class);
 
 	@Autowired
 	private StudentService studentService;
@@ -85,31 +89,55 @@ public class CoursesArrangingController {
 	@Autowired
 	private TeacherService teacherService;
 
+	@Autowired
+	private ClassHourService classHourService;
+
+	@Autowired
+	private BaseSyllabusService baseSyllabusService;
+
 	/**
 	 * 先排课,再遍历每个学生,选择该学生可排课的最优组合
 	 */
 	@RequestMapping(value = "/test3", method = RequestMethod.GET)
 	public ResponseEntity<?> arranging3(
-			// 排2016年的课
+			// 排哪一年课
 			@RequestParam("year") Integer year,
 			// 0:上学期,1:下学期
 			@RequestParam("term") Integer term,
 			// 第几届
-			@RequestParam("th") Integer th,
-			@RequestParam(value = "name", required = false) String name,
+			@RequestParam("th") Integer th, @RequestParam(value = "name", required = false) String name,
 			// 根据type返回不同结果
-			@RequestParam("type") Integer type,
-			@RequestParam(value = "scores", required = false) Integer scores1,
-			@RequestParam("period") Integer period) {
-		ArrangeCourse arrangeCourse = new ArrangeCourse(th, year, term, name,
-				new Date());
+			@RequestParam("type") Integer type, @RequestParam(value = "scores", required = false) Integer scores1,
+			@RequestParam("period") Integer period, @RequestParam(value = "periodInfo") List<String> periodInfos) {
+		/* 验证输入课时的格式和数量 并保存 */
+		List<ClassHour> classHours = new ArrayList<ClassHour>();
+		for (String info : periodInfos) {
+			String[] infos = info.split("-");
+			if (infos.length != 2) {
+				return new ResponseEntity<>("输入的课时格式错误！", HttpStatus.BAD_REQUEST);
+			} else if (!infos[0].matches("^[1-5]\\d*$") || !infos[1].matches("^[1-9]\\d*$")) {
+				return new ResponseEntity<>("输入的课时格式错误！", HttpStatus.BAD_REQUEST);
+			}
+			
+			ClassHour classHour = new ClassHour();
+			classHour = classHour.toClass(info) ;
+//			classHours = classHourService.getClassHours(periodInfo);
+//			classHour.setTime(time);
+			classHours.add(classHour);
+			classHour = classHourService.save(classHour);
+		}
+
+		if (classHours.size() != period) {
+			return new ResponseEntity<>("输入的课时数有误，请核对", HttpStatus.BAD_REQUEST);
+		}
+
+		ArrangeCourse arrangeCourse = new ArrangeCourse(th, year, term, name, new Date());
 		arrangeCourse = arrangeCourseService.save(arrangeCourse);
 		// 读取基础设置参数
-		BasicSettings basicSettings = basicSettingsService
-				.findOneByTh(arrangeCourse.getTh());
+		BasicSettings basicSettings = basicSettingsService.findOneByTh(arrangeCourse.getTh());
 		/* 统计出每门课等级考课程多少人,会考课程多少人 */
 		List<GroupDTO> groupDTOs = new ArrayList<GroupDTO>();
-		/* 新建好基础组 */
+		/* 新建好基础组 *//* 每门课程等级考和会考 */
 		List<Course> courses = courseService.findAll();
 		for (Course course : courses) {
 			GroupDTO groupDTO = new GroupDTO(course, true, 0);
@@ -124,30 +152,30 @@ public class CoursesArrangingController {
 			List<SelectCourse> selectCourses = student.getSelectCourses();
 			for (SelectCourse selectCourse : selectCourses) {
 				// 得到已学几学期
-				int num = (arrangeCourse.getYear() - selectCourse.getYear())
-						* 2 + arrangeCourse.getTerm() - selectCourse.getTerm();
-				if(num<0){
-					return new ResponseEntity<>("输入排课年份或学期错误",HttpStatus.BAD_REQUEST);
+				int num = (arrangeCourse.getYear() - selectCourse.getYear()) * 2 + arrangeCourse.getTerm()
+						- selectCourse.getTerm();
+				if (num < 0) {
+					return new ResponseEntity<>("输入排课年份或学期错误", HttpStatus.BAD_REQUEST);
 				}
+				// 等级考
 				if (selectCourse.isSelected()) {
-					/* 判断其等级考是否已经学完 */
+					/* 判断是否已经学完 */
 					if (num < selectCourse.getCourse().getLevelTerm()) {
 						/* 该课程等级考统计人数 */
 						for (GroupDTO groupDTO : groupDTOs) {
-							if (groupDTO.getCourse().getId() == selectCourse
-									.getCourse().getId()
+							if (groupDTO.getCourse().getId() == selectCourse.getCourse().getId()
 									&& groupDTO.isSelected() == true) {
 								groupDTO.setNum(groupDTO.getNum() + 1);
 							}
 						}
 					}
+					// 会考
 				} else {
-					/* 判断其会考是否已经学完 */
+					/* 判断是否已经学完 */
 					if (num < selectCourse.getCourse().getUnifiedTerm()) {
 						/* 该课程会考统计人数 */
 						for (GroupDTO groupDTO : groupDTOs) {
-							if (groupDTO.getCourse().getId() == selectCourse
-									.getCourse().getId()
+							if (groupDTO.getCourse().getId() == selectCourse.getCourse().getId()
 									&& groupDTO.isSelected() == false) {
 								groupDTO.setNum(groupDTO.getNum() + 1);
 							}
@@ -157,7 +185,7 @@ public class CoursesArrangingController {
 			}
 		}
 		// 删除分组科目人数为0的groupDTO,确定ClassHourModule的size
-		// courseIds:只有人数不为0的科目
+		// courseIds:人数不为0的科目
 		List<Long> courseIds = new ArrayList<Long>();
 
 		for (int i = 0; i < groupDTOs.size(); i++) {
@@ -173,27 +201,22 @@ public class CoursesArrangingController {
 		List<TeacherAndGroups> teacherAndGroups = new ArrayList<TeacherAndGroups>();
 		List<UtilityClass> utilityClasses = new ArrayList<UtilityClass>();
 		for (Course course : courses) {
-			List<Teacher> teachers = teacherService.findAllByCourseIdAndTh(
-					course.getId(), th);
+			List<Teacher> teachers = teacherService.findAllByCourseIdAndTh(course.getId(), th);
 			// 每门课等级考(会考)的总人数
-			List<GroupDTO> groupDTOs2 = GroupDTOUtil.findAllByCourseId(
-					course.getId(), groupDTOs);
+			List<GroupDTO> groupDTOs2 = GroupDTOUtil.findAllByCourseId(course.getId(), groupDTOs);
 			// 添加到老师实体类的groupDTO
 			List<GroupDTO> groupDTOs3 = new ArrayList<GroupDTO>();
 			for (GroupDTO groupDTO : groupDTOs2) {
 				int totalNum = groupDTO.getNum();
 				int numOfClass = basicSettings.getNumOfClass();
 				// 一共被分为多少个组
-				int size = totalNum / numOfClass
-						+ (totalNum % numOfClass <= (numOfClass / 2) ? 0 : 1);
+				int size = totalNum / numOfClass + (totalNum % numOfClass <= (numOfClass / 2) ? 0 : 1);
 				// 把信息整合到utilityClasses中,
 				boolean b = true;
 				for (UtilityClass utilityClass : utilityClasses) {
-					if (getMaxPeriod(groupDTO.getCourse()) == utilityClass
-							.getMaxClassHours()) {
+					if (getMaxPeriod(groupDTO.getCourse()) == utilityClass.getMaxClassHours()) {
 						// 当已被记录,取最大
-						int a = size / teachers.size()
-								+ (size % teachers.size() > 0 ? 1 : 0);
+						int a = size / teachers.size() + (size % teachers.size() > 0 ? 1 : 0);
 						if (utilityClass.getNum() < a) {
 							utilityClass.setNum(a);
 						}
@@ -202,32 +225,29 @@ public class CoursesArrangingController {
 					}
 				}
 				if (b) {
-					utilityClasses.add(new UtilityClass(getMaxPeriod(groupDTO
-							.getCourse()), size / teachers.size()
-							+ (size % teachers.size() > 0 ? 1 : 0)));
+					utilityClasses.add(new UtilityClass(getMaxPeriod(groupDTO.getCourse()),
+							size / teachers.size() + (size % teachers.size() > 0 ? 1 : 0)));
 				}
 				for (int i = 0; i < size; i++) {
-					GroupDTO groupDTO2 = new GroupDTO(course,
-							groupDTO.isSelected(), 0);
+					GroupDTO groupDTO2 = new GroupDTO(course, groupDTO.isSelected(), 0);
 					groupDTOs3.add(groupDTO2);
 				}
 			}
 			List<TeacherAndGroups> teacherAndGroups3 = new ArrayList<TeacherAndGroups>();
 			for (Teacher teacher : teachers) {
-				TeacherAndGroups teacherAndGroups2 = new TeacherAndGroups(
-						teacher, new ArrayList<GroupDTO>());
+				TeacherAndGroups teacherAndGroups2 = new TeacherAndGroups(teacher, new ArrayList<GroupDTO>());
 				teacherAndGroups3.add(teacherAndGroups2);
 			}
 			// 辅助数据
 			int a = 0;
 			for (GroupDTO groupDTO : groupDTOs3) {
-				teacherAndGroups3.get(a % teacherAndGroups3.size())
+				teacherAndGroups3.get(a % teacherAndGroups3.size()) // teacherAndGroups3.size()是什么
 						.getGroupDTOs().add(groupDTO);
 				a++;
 			}
 			teacherAndGroups.addAll(teacherAndGroups3);
 		}
-
+		/*------------------*/
 		Collections.sort(utilityClasses);
 		// debug utilityClasses
 		logger.debug("utilityClasses.size():" + utilityClasses.size());
@@ -248,8 +268,7 @@ public class CoursesArrangingController {
 			integers3.add(b);
 		}
 		if (a > period) {
-			return new ResponseEntity<>("课时数不足,请分配至少" + a + "个课时",
-					HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("课时数不足,请分配至少" + a + "个课时", HttpStatus.BAD_REQUEST);
 		}
 		Collections.sort(integers3);
 		Collections.reverse(integers3);
@@ -257,21 +276,19 @@ public class CoursesArrangingController {
 		logger.debug("integers3修改之前:" + integers3.toString());
 		if (period > a) {
 			for (int i = 0; i < period - a; i++) {
-				integers3.set(integers3.size() - 1,
-						integers3.get(integers3.size() - 1) + 1);
+				integers3.set(integers3.size() - 1, integers3.get(integers3.size() - 1) + 1);
 				Collections.sort(integers3);
 				Collections.reverse(integers3);
 			}
 		}
 		logger.debug("integers3修改之后:" + integers3.toString());
 		/* 根据实际情况最后一次修改课时块的课时数 */
+		// wen
 		for (UtilityClass utilityClass : utilityClasses) {
 			while (!utilityClassMethod(integers3, utilityClass)) {
-				int index = utilityClassGetIndex(integers3,
-						utilityClass.getMaxClassHours());
+				int index = utilityClassGetIndex(integers3, utilityClass.getMaxClassHours());
 				if (index + 1 > integers3.size()) {
-					return new ResponseEntity<>("请分配更多的课时数",
-							HttpStatus.BAD_REQUEST);
+					return new ResponseEntity<>("请分配更多的课时数", HttpStatus.BAD_REQUEST);
 				}
 				integers3.set(index, integers3.get(index) + 1);
 				integers3.set(index + 1, integers3.get(index + 1) - 1);
@@ -287,6 +304,38 @@ public class CoursesArrangingController {
 			classHourModules.add(classHourModule);
 		}
 		baseSyllabus.setClassHourModules(classHourModules);
+
+		// 输入的上课时间参数顺序随机重排
+		for (int i = 0; i < classHours.size(); i++) {
+			int from = (int) Math.floor(Math.random() * classHours.size());
+			int to = (int) Math.floor(Math.random() * classHours.size());
+			ClassHour temp = classHours.get(to);
+			classHours.set(to, classHours.get(from));
+			classHours.set(from, temp);
+		}
+
+		List<List<ClassHour>> subClassHours = new ArrayList<List<ClassHour>>();
+		List<Boolean> cs = new ArrayList<Boolean>();
+		int num2 = 0;
+		for (int i = 0; i < classHourModules.size(); i++) {
+			List<ClassHour> subClassHours1 = classHours.subList(num2, num2 + classHourModules.get(i).getHours());
+			num2 += classHourModules.get(i).getHours();
+			boolean c = compareClassHours(subClassHours1);
+//			//转换为字符串类型的List，然后调用compareClassHours()
+//			List<String> times = new ArrayList<String>();
+//			for(int j = 0;j<subClassHours1.size();j++){
+//			times.add(subClassHours1.get(j).toString());
+//			}
+//			boolean c = compareClassHours(times);
+			cs.add(c);
+			subClassHours.add(subClassHours1);
+		}
+
+		// 具体的上课时间分配到每个段里面
+		for (int i = 0; i < classHourModules.size(); i++) {
+			classHourModules.get(i).setClassHours(subClassHours.get(i));
+		}
+
 		/* 分配课程(组) */
 		/*
 		 * 1:哪里没有物理课 2:哪里没有同类型的物理课(安排物理等级课,则尽量不到有物理等级课的地方) 3:找该课时中课程数量最少的课时
@@ -300,19 +349,17 @@ public class CoursesArrangingController {
 					/* 课时数为0的省略 */
 					// 得到该group的每周课时数
 					Course course = groupDTO.getCourse();
-					int num = groupDTO.isSelected() ? course.getLevelPeriod()
-							: course.getUnifiedPeriod();
+					int num = groupDTO.isSelected() ? course.getLevelPeriod() : course.getUnifiedPeriod();
 					if (num == 0) {
-//						continue;
+						// continue;
 					}
-					Group group = new Group(new ArrayList<Student>(),
-							teacherAndGroups2.getTeacher(),
-							groupDTO.getCourse(), groupDTO.isSelected(),
-							arrangeCourse);
+					Group group = new Group(new ArrayList<Student>(), teacherAndGroups2.getTeacher(),
+							groupDTO.getCourse(), groupDTO.isSelected(), arrangeCourse);
+					// ???
 					if (!arrangingStep1(group, baseSyllabus)) {
-					//	if (!arrangingStep2(group, baseSyllabus)) {
-							arrangingStep3(group, baseSyllabus);
-						//}
+						// if (!arrangingStep2(group, baseSyllabus)) {
+						arrangingStep3(group, baseSyllabus);
+						// }
 					}
 				}
 			}
@@ -328,42 +375,38 @@ public class CoursesArrangingController {
 			}
 			for (int j = 0; j < student.getSelectCourses().size(); j++) {
 				SelectCourse selectCourse = student.getSelectCourses().get(j);
-				int num=selectCourse.isSelected()?selectCourse.getCourse().getLevelPeriod():selectCourse.getCourse().getUnifiedPeriod();
-				if(num==0){
-//					continue;
+				int num = selectCourse.isSelected() ? selectCourse.getCourse().getLevelPeriod()
+						: selectCourse.getCourse().getUnifiedPeriod();
+				if (num == 0) {
+					// continue;
 				}
 				for (int i = 0; i < baseSyllabus.getClassHourModules().size(); i++) {
-					for (Group group : baseSyllabus.getClassHourModules()
-							.get(i).getGroups()) {
-						if (group.getCourse().getId() == selectCourse
-								.getCourse().getId()
-								&& group.isSelected() == selectCourse
-										.isSelected()) {
+					for (Group group : baseSyllabus.getClassHourModules().get(i).getGroups()) {
+						if (group.getCourse().getId() == selectCourse.getCourse().getId()
+								&& group.isSelected() == selectCourse.isSelected()) {
 							/* 该ClassHourModule中有对应的课程 */
 							// 评分逻辑
 							int scores = 0;
-							if (student.getnClass().getTeachers()
-									.indexOf(group.getTeacher()) != -1) {
+							if (student.getnClass().getTeachers().indexOf(group.getTeacher()) != -1) {
 								scores += scores1;
 							}
 							scores -= group.getStudentSize();
 							// logger.debug("group.getStudentSize():"+group.getStudentSize());
 							// logger.debug("scores"+scores);
-							schemes.get(j).getGroupDTO3s()
-									.add(new GroupDTO3(i, scores, group));
+							schemes.get(j).getGroupDTO3s().add(new GroupDTO3(i, scores, group));
 						}
 					}
 				}
 			}
-			
-//			for(int i=0;i<schemes.size();i++){
-//				if(schemes.get(i).getGroupDTO3s()==null||schemes.get(i).getGroupDTO3s().size()==0){
-//					logger.debug("删除一列");
-//					schemes.remove(i);
-//					i--;
-//				}
-//			}
-			
+
+			// for(int i=0;i<schemes.size();i++){
+			// if(schemes.get(i).getGroupDTO3s()==null||schemes.get(i).getGroupDTO3s().size()==0){
+			// logger.debug("删除一列");
+			// schemes.remove(i);
+			// i--;
+			// }
+			// }
+
 			List<List<Point>> lists = new ArrayList<List<Point>>();
 			for (int i = 0; i < schemes.size(); i++) {
 				for (int j = 0; j < schemes.get(i).getGroupDTO3s().size(); j++) {
@@ -372,8 +415,7 @@ public class CoursesArrangingController {
 							if (lists.get(k).size() == i) {
 								boolean j2 = true;
 								for (Point point : lists.get(k)) {
-									if (point.getX() == schemes.get(i)
-											.getGroupDTO3s().get(j)
+									if (point.getX() == schemes.get(i).getGroupDTO3s().get(j)
 											.getClassHourModuleIndex()) {
 										j2 = false;
 										break;
@@ -382,21 +424,17 @@ public class CoursesArrangingController {
 								if (j2) {
 									List<Point> integers = new ArrayList<Point>();
 									integers.addAll(lists.get(k));
-									integers.add(new Point(schemes.get(i)
-											.getGroupDTO3s().get(j)
-											.getClassHourModuleIndex(), j));
+									integers.add(new Point(
+											schemes.get(i).getGroupDTO3s().get(j).getClassHourModuleIndex(), j));
 									lists.add(integers);
 								}
 							}
 						}
 					} else {
-						for (int k = 0; k < schemes.get(i).getGroupDTO3s()
-								.size(); k++) {
+						for (int k = 0; k < schemes.get(i).getGroupDTO3s().size(); k++) {
 							List<Point> integers = new ArrayList<Point>();
-							GroupDTO3 groupDTO3 = schemes.get(i)
-									.getGroupDTO3s().get(k);
-							integers.add(new Point(groupDTO3
-									.getClassHourModuleIndex(), k));
+							GroupDTO3 groupDTO3 = schemes.get(i).getGroupDTO3s().get(k);
+							integers.add(new Point(groupDTO3.getClassHourModuleIndex(), k));
 							lists.add(integers);
 						}
 					}
@@ -420,18 +458,12 @@ public class CoursesArrangingController {
 					List<Integer> integers2 = new ArrayList<Integer>();
 					List<String> strings = new ArrayList<String>();
 					for (int j = 0; j < integers.size(); j++) {
-						scores2 += schemes.get(j).getGroupDTO3s()
-								.get(integers.get(j).getY()).getScores();
-						integers2.add(schemes.get(j).getGroupDTO3s()
-								.get(integers.get(j).getY()).getScores());
+						scores2 += schemes.get(j).getGroupDTO3s().get(integers.get(j).getY()).getScores();
+						integers2.add(schemes.get(j).getGroupDTO3s().get(integers.get(j).getY()).getScores());
 						strings.add("课时"
-								+ schemes.get(j).getGroupDTO3s()
-										.get(integers.get(j).getY())
-										.getClassHourModuleIndex()
+								+ schemes.get(j).getGroupDTO3s().get(integers.get(j).getY()).getClassHourModuleIndex()
 								+ ","
-								+ schemes.get(j).getGroupDTO3s()
-										.get(integers.get(j).getY()).getGroup()
-										.getInfo());
+								+ schemes.get(j).getGroupDTO3s().get(integers.get(j).getY()).getGroup().getInfo());
 					}
 					// logger.debug("课程:"+strings);
 					// logger.debug("分数:"+integers2.toString());
@@ -447,20 +479,52 @@ public class CoursesArrangingController {
 			} else {
 				for (int i = 0; i < lists.get(index).size(); i++) {
 					Point point = lists.get(index).get(i);
-					schemes.get(i).getGroupDTO3s().get(point.getY()).getGroup()
-							.getStudents().add(student);
+					schemes.get(i).getGroupDTO3s().get(point.getY()).getGroup().getStudents().add(student);
 				}
 			}
 		}
+		/* 保存groups */
+		baseSyllabus = baseSyllabusService.save(baseSyllabus);
+		/* 返回结果 */
 		if (type == 1) {
-			return new ResponseEntity<>(teacherAndGroups, HttpStatus.OK);
+//			return new ResponseEntity<>(classHours, HttpStatus.OK);
+			return new ResponseEntity<>(classHourModules, HttpStatus.OK);
+			// return new ResponseEntity<>(teacherAndGroups, HttpStatus.OK);
 		}
 		if (type == 2) {
 			return new ResponseEntity<>(baseSyllabus, HttpStatus.OK);
 		}
 		// return new ResponseEntity<>(lists,HttpStatus.OK);
-		return new ResponseEntity<>(HttpStatus.OK);
+		return new ResponseEntity<>(classHours, HttpStatus.OK);
 	}
+
+	// 调用-------------------------------------------------------------------------------------------------
+	/* 求前面几个数相加 */
+
+	/*
+	 * 验证一个List<ClassHour>
+	 * 判断同一天的两节课是不是相邻的两节课(方法可行)
+	 * */
+	public boolean compare(ClassHour one, ClassHour another) {
+		if (one.getDay() != another.getDay()) {
+			return true;
+		} else if (Math.abs(one.getHour() - another.getHour()) == 1) {
+			return true;
+		}
+		return false;
+	}
+
+	public boolean compareClassHours(List<ClassHour> classHours) {
+		for (int i = 0; i < classHours.size(); i++) {
+			for (int j = i + 1; j < classHours.size(); j++) {
+				if (!compare(classHours.get(i), classHours.get(j))) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
 
 	private int utilityClassGetIndex(List<Integer> integers3, int maxClassHours) {
 		int num = 0;
@@ -476,8 +540,7 @@ public class CoursesArrangingController {
 	/**
 	 * 判断课时块是否符合要求
 	 */
-	private boolean utilityClassMethod(List<Integer> integers3,
-			UtilityClass utilityClass) {
+	private boolean utilityClassMethod(List<Integer> integers3, UtilityClass utilityClass) {
 		int num = 0;
 		for (Integer integer : integers3) {
 			if (integer >= utilityClass.getMaxClassHours()) {
@@ -497,12 +560,10 @@ public class CoursesArrangingController {
 	private void arrangingStep3(Group group, BaseSyllabus baseSyllabus) {
 		// 满足放置条件的课时
 		List<ClassHourModule> classHourModules = new ArrayList<ClassHourModule>();
-		for (ClassHourModule classHourModule : baseSyllabus
-				.getClassHourModules()) {
+		for (ClassHourModule classHourModule : baseSyllabus.getClassHourModules()) {
 			// 得到该group的每周课时数
 			Course course = group.getCourse();
-			int num = group.isSelected() ? course.getLevelPeriod() : course
-					.getUnifiedPeriod();
+			int num = group.isSelected() ? course.getLevelPeriod() : course.getUnifiedPeriod();
 			if (num > classHourModule.getHours()) {
 				continue;
 			}
@@ -550,8 +611,7 @@ public class CoursesArrangingController {
 					// 等级课/会考课总数
 					int size3 = 0;
 					for (int j1 = 0; j1 < classHourModule.getGroups().size(); j1++) {
-						if (classHourModule.getGroups().get(j1).isSelected() == group
-								.isSelected()) {
+						if (classHourModule.getGroups().get(j1).isSelected() == group.isSelected()) {
 							size3++;
 						}
 					}
@@ -572,12 +632,10 @@ public class CoursesArrangingController {
 	private boolean arrangingStep2(Group group, BaseSyllabus baseSyllabus) {
 		// 满足放置条件的课时
 		List<ClassHourModule> classHourModules = new ArrayList<ClassHourModule>();
-		for (ClassHourModule classHourModule : baseSyllabus
-				.getClassHourModules()) {
+		for (ClassHourModule classHourModule : baseSyllabus.getClassHourModules()) {
 			// 得到该group的每周课时数
 			Course course = group.getCourse();
-			int num = group.isSelected() ? course.getLevelPeriod() : course
-					.getUnifiedPeriod();
+			int num = group.isSelected() ? course.getLevelPeriod() : course.getUnifiedPeriod();
 			if (num > classHourModule.getHours()) {
 				continue;
 			}
@@ -631,8 +689,7 @@ public class CoursesArrangingController {
 					// 等级课/会考课总数
 					int size3 = 0;
 					for (int j1 = 0; j1 < classHourModule.getGroups().size(); j1++) {
-						if (classHourModule.getGroups().get(j1).isSelected() == group
-								.isSelected()) {
+						if (classHourModule.getGroups().get(j1).isSelected() == group.isSelected()) {
 							size3++;
 						}
 					}
@@ -657,13 +714,11 @@ public class CoursesArrangingController {
 	private boolean arrangingStep1(Group group, BaseSyllabus baseSyllabus) {
 		// 存在多少个没有(物理)课的地方
 		List<ClassHourModule> classHourModules = new ArrayList<ClassHourModule>();
-		for (ClassHourModule classHourModule : baseSyllabus
-				.getClassHourModules()) {
+		for (ClassHourModule classHourModule : baseSyllabus.getClassHourModules()) {
 			boolean j2 = true;
 			// 得到该group的每周课时数
 			Course course = group.getCourse();
-			int num = group.isSelected() ? course.getLevelPeriod() : course
-					.getUnifiedPeriod();
+			int num = group.isSelected() ? course.getLevelPeriod() : course.getUnifiedPeriod();
 			if (num > classHourModule.getHours()) {
 				continue;
 			}
@@ -710,8 +765,7 @@ public class CoursesArrangingController {
 					// 等级课/会考课总数
 					int size3 = 0;
 					for (int j1 = 0; j1 < classHourModule.getGroups().size(); j1++) {
-						if (classHourModule.getGroups().get(j1).isSelected() == group
-								.isSelected()) {
+						if (classHourModule.getGroups().get(j1).isSelected() == group.isSelected()) {
 							size3++;
 						}
 					}
@@ -932,27 +986,21 @@ public class CoursesArrangingController {
 		List<Student> students = studentService.findAll();
 		List<Course> courses = courseService.findAll();
 		List<StatisticalDataOfSelectCourseAssist> statisticalDataOfSelectCourseAssists = new ArrayList<StatisticalDataOfSelectCourseAssist>();
-		ArrangeCourse arrangeCourse = new ArrangeCourse(th, year, term, name,
-				new Date());
+		ArrangeCourse arrangeCourse = new ArrangeCourse(th, year, term, name, new Date());
 		arrangeCourse = arrangeCourseService.save(arrangeCourse);
 		for (Course course : courses) {
 			StatisticalDataOfSelectCourseAssist statisticalDataOfSelectCourseAssist = new StatisticalDataOfSelectCourseAssist(
 					course, 0, 0);
-			statisticalDataOfSelectCourseAssists
-					.add(statisticalDataOfSelectCourseAssist);
+			statisticalDataOfSelectCourseAssists.add(statisticalDataOfSelectCourseAssist);
 		}
 		for (Student student : students) {
 			/* 查找所有选修课 */
 			List<SelectCourse> selectCourses = student.getSelectCourses();
 			for (SelectCourse selectCourse : selectCourses) {
 				for (StatisticalDataOfSelectCourseAssist statisticalDataOfSelectCourseAssist : statisticalDataOfSelectCourseAssists) {
-					if (selectCourse.getCourse().getId() == statisticalDataOfSelectCourseAssist
-							.getCourse().getId()) {
+					if (selectCourse.getCourse().getId() == statisticalDataOfSelectCourseAssist.getCourse().getId()) {
 						// 得到已学几学期
-						int num = (arrangeCourse.getYear() - selectCourse
-								.getYear())
-								* 2
-								+ arrangeCourse.getTerm()
+						int num = (arrangeCourse.getYear() - selectCourse.getYear()) * 2 + arrangeCourse.getTerm()
 								- selectCourse.getTerm();
 						if (selectCourse.isSelected()) {
 							/* 判断其等级考是否已经学完 */
@@ -960,16 +1008,14 @@ public class CoursesArrangingController {
 							if (num < selectCourse.getCourse().getLevelTerm()) {
 								// 等级考人数加一
 								statisticalDataOfSelectCourseAssist
-										.setLevelNum(statisticalDataOfSelectCourseAssist
-												.getLevelNum() + 1);
+										.setLevelNum(statisticalDataOfSelectCourseAssist.getLevelNum() + 1);
 							}
 						} else {
 							/* 判断其会考是否已经学完 */
 							if (num < selectCourse.getCourse().getUnifiedTerm()) {
 								// 会考人数加一
 								statisticalDataOfSelectCourseAssist
-										.setUnifiedNum(statisticalDataOfSelectCourseAssist
-												.getUnifiedNum() + 1);
+										.setUnifiedNum(statisticalDataOfSelectCourseAssist.getUnifiedNum() + 1);
 							}
 
 						}
@@ -977,13 +1023,11 @@ public class CoursesArrangingController {
 				}
 			}
 		}
-		statisticalDataOfSelectCourseAssistService
-				.save(statisticalDataOfSelectCourseAssists);
-		StatisticalDataOfSelectCourse statisticalDataOfSelectCourse = new StatisticalDataOfSelectCourse(
-				arrangeCourse, statisticalDataOfSelectCourseAssists);
+		statisticalDataOfSelectCourseAssistService.save(statisticalDataOfSelectCourseAssists);
+		StatisticalDataOfSelectCourse statisticalDataOfSelectCourse = new StatisticalDataOfSelectCourse(arrangeCourse,
+				statisticalDataOfSelectCourseAssists);
 		StatisticalDataOfSelectCourse statisticalDataOfSelectCourse2 = statisticalDataOfSelectCourseService
 				.save(statisticalDataOfSelectCourse);
-		return new ResponseEntity<>(statisticalDataOfSelectCourse2,
-				HttpStatus.OK);
+		return new ResponseEntity<>(statisticalDataOfSelectCourse2, HttpStatus.OK);
 	}
 }

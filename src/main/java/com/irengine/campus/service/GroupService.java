@@ -7,9 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.irengine.campus.domain.Course;
+//import com.irengine.campus.domain.Course;
 import com.irengine.campus.domain.Group;
-import com.irengine.campus.domain.NaturalClass;
+//import com.irengine.campus.domain.NaturalClass;
 import com.irengine.campus.repository.GroupDao;
 
 @Service

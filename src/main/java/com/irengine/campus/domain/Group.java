@@ -45,6 +45,8 @@ public class Group extends BaseEntity implements Serializable ,Comparable<Group>
 	private boolean selected;
 
 	@JsonIgnore
+	@ManyToOne
+	@JoinColumn(name="arrangeCourse_id")
 	private ArrangeCourse arrangeCourse;
 	
 	public Group() {
@@ -60,7 +62,7 @@ public class Group extends BaseEntity implements Serializable ,Comparable<Group>
 		this.selected = selected;
 		this.arrangeCourse = arrangeCourse;
 	}
-
+//----------------
 	public String getInfo(){
 		return teacher.getCourse().getCourseName()+"老师:"+teacher.getBaseInfo().getName()+","+(isSelected()?"等级考":"会考");
 	}
@@ -68,7 +70,7 @@ public class Group extends BaseEntity implements Serializable ,Comparable<Group>
 	public Integer getStudentSize() {
 		return students.size();
 	}
-
+//----------------
 	public List<Student> getStudents() {
 		return students;
 	}

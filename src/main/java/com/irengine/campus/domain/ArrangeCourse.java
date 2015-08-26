@@ -1,15 +1,21 @@
 package com.irengine.campus.domain;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * 排课参数
@@ -35,6 +41,10 @@ public class ArrangeCourse extends BaseEntity implements Serializable{
 	//命名(默认为创建时间)
 	private String name;
 	
+	@JsonIgnore
+	@OneToMany(cascade = CascadeType.ALL,fetch = FetchType.LAZY)
+	private List<Group> groups = new ArrayList<Group>();
+	
 	//创建时间
 	@Column(nullable = false)
 	@Temporal(TemporalType.TIMESTAMP)
@@ -53,6 +63,15 @@ public class ArrangeCourse extends BaseEntity implements Serializable{
 		this.term = term;
 		this.name = name;
 		this.createdTime = createdTime;
+	}
+
+	
+	public List<Group> getGroups() {
+		return groups;
+	}
+
+	public void setGroups(List<Group> groups) {
+		this.groups = groups;
 	}
 
 	public Integer getTh() {
