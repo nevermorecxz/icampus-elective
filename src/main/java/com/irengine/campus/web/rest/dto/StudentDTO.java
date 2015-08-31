@@ -1,7 +1,5 @@
 package com.irengine.campus.web.rest.dto;
 
-import java.util.Comparator;
-
 public class StudentDTO implements Comparable<StudentDTO>{
 
 	private String classInfo;

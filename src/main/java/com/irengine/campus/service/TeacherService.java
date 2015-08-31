@@ -20,4 +20,8 @@ public class TeacherService {
 		return teacherDao.findAllByCourseIdAndTh(id,th);
 	}
 	
+	public Teacher findOneByTeacherId(Long teacherId){
+		return teacherDao.findOne(teacherId);
+	}
+	
 }

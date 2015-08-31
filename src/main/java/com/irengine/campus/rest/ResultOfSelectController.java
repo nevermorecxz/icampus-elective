@@ -141,7 +141,7 @@ public class ResultOfSelectController {
 						HttpStatus.INTERNAL_SERVER_ERROR);
 			}
 		} else if (StringUtils.equals("onecourse", eType)) {
-			logger.debug("导出但学科统计表");
+			logger.debug("导出单学科统计表");
 			/* 按学科统计人数 */
 			try {
 				if (courseId == null) {

@@ -18,4 +18,7 @@ public class BaseSyllabusService {
 		baseSyllabus = baseSyllabusDao.save(baseSyllabus);
 		return baseSyllabus;
 	}
+	public BaseSyllabus findOneById(Long id){
+		return  baseSyllabusDao.findOne(id);
+	}
 }

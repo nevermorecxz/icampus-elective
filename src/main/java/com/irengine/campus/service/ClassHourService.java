@@ -17,5 +17,4 @@ public class ClassHourService {
 	public ClassHour save(ClassHour classHour) {
 		return classHour = classHourDao.save(classHour);
 	}
-
 }

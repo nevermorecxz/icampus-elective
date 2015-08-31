@@ -27,7 +27,6 @@ import com.irengine.campus.domain.ClassHour;
 import com.irengine.campus.domain.ClassHourModule;
 import com.irengine.campus.domain.Course;
 import com.irengine.campus.domain.Group;
-import com.irengine.campus.domain.NaturalClass;
 import com.irengine.campus.domain.SelectCourse;
 import com.irengine.campus.domain.StatisticalDataOfSelectCourse;
 import com.irengine.campus.domain.StatisticalDataOfSelectCourseAssist;
@@ -317,7 +316,7 @@ public class CoursesArrangingController {
 				classHours.set(from, temp);
 			}
 
-//			List<Boolean> cs = new ArrayList<Boolean>();
+			//
 			int num2 = 0;
 			for (int i = 0; i < classHourModules.size(); i++) {
 				c=false;
@@ -326,7 +325,6 @@ public class CoursesArrangingController {
 				c = compareClassHours(subClassHours1);
 				logger.debug(""+c);
 				if (c==true) {
-//					cs.add(c);
 					subClassHours.add(subClassHours1);
 				} else {
 					break;
@@ -337,7 +335,8 @@ public class CoursesArrangingController {
 		for (int i = 0; i < classHourModules.size(); i++) {
 			classHourModules.get(i).setClassHours(subClassHours.get(i));
 		}
-
+		//test
+		baseSyllabus.setClassHourModules(classHourModules);
 		/* 分配课程(组) */
 		/*
 		 * 1:哪里没有物理课 2:哪里没有同类型的物理课(安排物理等级课,则尽量不到有物理等级课的地方) 3:找该课时中课程数量最少的课时
@@ -485,6 +484,7 @@ public class CoursesArrangingController {
 				}
 			}
 		}
+		
 		/* 保存groups */
 		baseSyllabus = baseSyllabusService.save(baseSyllabus);
 		/* 返回结果 */
